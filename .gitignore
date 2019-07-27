@@ -1,0 +1,7 @@
+desktop.ini
+*.cache
+*.hw
+*.runs
+*.sim
+*.xml
+*.ip_user_files
