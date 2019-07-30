@@ -8,6 +8,9 @@ module XADCdemo(
     output [15:0] D,
     output [1:0] F,
     
+    // LEDs
+    output [1:0] led,
+    
     // XADC pins
     input xa_n,   
     input xa_p,
@@ -61,8 +64,9 @@ always @ (posedge slow_clk[20]) begin
     end
 end
 
-// write to the parallel port
+// write to the parallel port and LEDs
 assign F = Fset;
+assign led = Fset;
 assign D = data;
 
 endmodule
