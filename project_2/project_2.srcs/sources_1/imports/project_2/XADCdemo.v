@@ -53,7 +53,7 @@ c_counter_binary_0 div_20 (
     .Q(slow_clk)
 );
 
-// select destination using buttons
+// select AD9910 parallel port destination using buttons
 reg [1:0] Fset;
 always @ (posedge slow_clk[20]) begin
     if (btn[0]) begin
@@ -67,6 +67,6 @@ end
 // write to the parallel port and LEDs
 assign F = Fset;
 assign led = Fset;
-assign D = data;
+assign D[15:4] = data >> 4; // discard 4 bits out of the 16 since we have a 12-bit ADC
 
 endmodule
