@@ -18,8 +18,8 @@ module PID_test(
     input vn_in,
     
     // input for PID parameters
-    input [7:0]KP,
-    input [5:0]P_div
+    input [11:0]setpoint,
+    input [6:0]KP
 );
 
 // the clock for the XADC
@@ -51,7 +51,7 @@ xadc_wiz_0 (
       .drdy_out(ADC_ready)
 );
 
-// the XADC IP requires a 16-bit wire, but the FGPA's ADC is only 12 bit
+// the XADC IP requires a 16-bit wire, but the FGPA's ADC is only 12 bit; we can thus ignore the four LSBs
 wire [11:0]ADC_data;
 assign ADC_data = data >> 4;
 
@@ -75,18 +75,26 @@ always @ (posedge slow_clk[20]) begin
 end
 
 // parameters for PID control
-reg [11:0]setpoint = 12'b0000_1111_1111;
-reg [12:0]error;
-reg [21:0]out;
+reg [31:0]error;
+reg [31:0]integrated_error;
+reg [12:0]out;
 
 // calculate PID output
 always @(negedge(ADC_ready)) begin
+    // calculate error
     error = setpoint - ADC_data;
-    out <= KP * error / P_div;
+    integrated_error[31:0] = integrated_error[31:0] + error[31:0];
+    
+    // calculate PID control output
+    out[12:0] =  integrated_error[31:19]*KP + error[12:0];
+    
+    // check output is positive; else make it zero
+    if (out[12] == 1)
+      out = 0;
 end
 
 // write to the parallel port
 assign F = Bsel;  // F[1:0]=00 = amplitude modulation on AD9910 
-assign D[15:0] = out[15:0]; // 14-bit amplitude output
+assign D[15:4] = out[11:0]; // the 16-bit parallel data port
 
 endmodule

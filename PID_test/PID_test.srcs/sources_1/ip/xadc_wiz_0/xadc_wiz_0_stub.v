@@ -1,10 +1,10 @@
 // Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2019.1 (win64) Build 2552052 Fri May 24 14:49:42 MDT 2019
-// Date        : Tue Aug 13 14:24:19 2019
+// Date        : Tue Jul 30 17:49:21 2019
 // Host        : DESKTOP-LTK36K4 running 64-bit major release  (build 9200)
-// Command     : write_verilog -force -mode synth_stub
-//               F:/Xilinx/Jakob_testing/PID_test/PID_test.srcs/sources_1/ip/xadc_wiz_0/xadc_wiz_0_stub.v
+// Command     : write_verilog -force -mode synth_stub -rename_top xadc_wiz_0 -prefix
+//               xadc_wiz_0_ xadc_wiz_0_stub.v
 // Design      : xadc_wiz_0
 // Purpose     : Stub declaration of top-level module interface
 // Device      : xc7a35tcpg236-1
