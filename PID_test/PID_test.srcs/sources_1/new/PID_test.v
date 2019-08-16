@@ -19,7 +19,7 @@ module PID_test(
     
     // input for PID parameters
     input [11:0]setpoint,
-    input [6:0]KP
+    input [6:0]KI
 );
 
 // the clock for the XADC
@@ -86,7 +86,7 @@ always @(negedge(ADC_ready)) begin
     integrated_error[31:0] = integrated_error[31:0] + error[31:0];
     
     // calculate PID control output
-    out[12:0] =  integrated_error[31:19]*KP + error[12:0];
+    out[12:0] =  KI*integrated_error[31:19] + error[12:0];
     
     // check output is positive; else make it zero
     if (out[12] == 1)
