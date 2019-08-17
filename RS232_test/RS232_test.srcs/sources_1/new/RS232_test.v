@@ -16,10 +16,7 @@ module RS232(
   output TxD,
   input Tx_start,
   input [7:0]TxD_data,
-  output Tx_active,
-  
-  // for debugging
-  output reg Rx_reset
+  output Tx_active
 );
 
 slow_clock slow_clock_inst(
@@ -27,30 +24,20 @@ slow_clock slow_clock_inst(
   .slow_clk(slow_clk)
 );
 
-// detect start of transmission
-reg Tx_reset;
-initial Tx_reset = 0;
-always @(posedge sysclk)
-  Tx_reset = (Tx_reset || Tx_start) && ~Tx_active;
-
 RS232_transmit RS232_transmit_inst(
+  .sysclk(sysclk),
   .slow_clk(slow_clk),
   .TxD(TxD),
   .TxD_data(TxD_data),
-  .Tx_reset(Tx_reset),
+  .Tx_start(Tx_start),
   .Tx_active(Tx_active)
 );
 
-// detect start of data reception
-initial Rx_reset = 0;
-always @(posedge sysclk)
-  Rx_reset = (Rx_reset || ~RxD) && ~Rx_active;
-
 RS232_receive RS232_receive_inst (
+  .sysclk(sysclk),
   .slow_clk(slow_clk),
   .RxD(RxD),
   .RxD_data(RxD_data),
-  .Rx_reset(Rx_reset),
   .Rx_active(Rx_active)
 );
 
@@ -63,7 +50,6 @@ module slow_clock(
   output reg slow_clk
 );
 // divide 12MHz clock down to 9600 baud rate
-/*
 reg [10:0] counter = 0;
 always @(posedge sysclk) begin
    if (counter < 625)
@@ -73,37 +59,44 @@ always @(posedge sysclk) begin
      slow_clk = slow_clk + 1; 
    end
  end
- */
  
  // for testing: approx. 1 Hz clock
+ /*
  reg [22:0] counter = 0;
  always @(posedge sysclk)
     counter = counter + 1;
  assign slow_clk = counter[22];
+ */
 
 endmodule
 
 
 
 module RS232_transmit(
+  input sysclk,
   input slow_clk,
   
   output reg TxD,
   input [7:0]TxD_data,
   
-  input Tx_reset,
+  input Tx_start,
   output Tx_active
 );
 
 reg [3:0]TxD_idx = 10; // transmission data index
+
+// detect start of transmission
 assign Tx_active = TxD_idx < 10;
+reg Tx_reset = 0;
+always @(posedge sysclk)
+  Tx_reset = (Tx_reset || Tx_start) && ~Tx_active;
 
 always @(posedge slow_clk) begin
   // if starting transmission, reset data index
   if (Tx_reset)
     TxD_idx = 0;
   
-  // send data
+  // transmit the data
   case (TxD_idx) inside
         0: TxD = 0; // start bit = 0
     [1:8]: TxD = TxD_data[TxD_idx-1];
@@ -120,28 +113,31 @@ endmodule
 
 
 module RS232_receive(
+  input sysclk,
   input slow_clk,
   
   input RxD,
   output reg [7:0]RxD_data,
   
-  input Rx_reset,
   output Rx_active
 );
 
 reg [3:0] RxD_idx = 10; // data index
 assign Rx_active = RxD_idx < 10;
+reg Rx_reset = 0;
 
+// detect start of data reception
+always @(posedge sysclk)
+  Rx_reset = (Rx_reset || ~RxD) && ~Rx_active;
+
+// receive data
 always @(posedge slow_clk) begin
   if (Rx_reset)
-    RxD_idx = 0;
-
-  if ( (RxD_idx > 0) && (RxD_idx < 9) )
-    RxD_data[RxD_idx-1] = RxD;
-
-  // increment data index
-  if (Rx_active)
+    RxD_idx <= 0;
+  else if (Rx_active) begin
     RxD_idx = RxD_idx + 1;
+    RxD_data[RxD_idx-1] = RxD;
+  end
 end
 
 endmodule
