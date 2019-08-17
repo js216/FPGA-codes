@@ -7,7 +7,7 @@
 
 module RS232(
   input sysclk,
-  output slow_clk,
+  output serial_clk,
   
   input RxD,
   output [7:0]RxD_data,
@@ -19,14 +19,14 @@ module RS232(
   output Tx_active
 );
 
-slow_clock slow_clock_inst(
+clock clock_inst(
   .sysclk(sysclk),
-  .slow_clk(slow_clk)
+  .serial_clk(serial_clk)
 );
 
 RS232_transmit RS232_transmit_inst(
   .sysclk(sysclk),
-  .slow_clk(slow_clk),
+  .slow_clk(serial_clk),
   .TxD(TxD),
   .TxD_data(TxD_data),
   .Tx_start(Tx_start),
@@ -35,7 +35,7 @@ RS232_transmit RS232_transmit_inst(
 
 RS232_receive RS232_receive_inst (
   .sysclk(sysclk),
-  .slow_clk(slow_clk),
+  .slow_clk(serial_clk),
   .RxD(RxD),
   .RxD_data(RxD_data),
   .Rx_active(Rx_active)
@@ -45,10 +45,11 @@ endmodule
 
 
 
-module slow_clock(
+module clock(
   input sysclk,
-  output reg slow_clk
+  output reg serial_clk
 );
+
 // divide 12MHz clock down to 9600 baud rate
 reg [10:0] counter = 0;
 always @(posedge sysclk) begin
@@ -56,17 +57,9 @@ always @(posedge sysclk) begin
      counter = counter + 1;
    else begin
      counter = 0;
-     slow_clk = slow_clk + 1; 
+     serial_clk = serial_clk + 1; 
    end
  end
- 
- // for testing: approx. 1 Hz clock
- /*
- reg [22:0] counter = 0;
- always @(posedge sysclk)
-    counter = counter + 1;
- assign slow_clk = counter[22];
- */
 
 endmodule
 
@@ -84,28 +77,29 @@ module RS232_transmit(
 );
 
 reg [3:0]TxD_idx = 10; // transmission data index
+assign Tx_active = TxD_idx < 11;
+reg Tx_reset = 0;
 
 // detect start of transmission
-assign Tx_active = TxD_idx < 10;
-reg Tx_reset = 0;
 always @(posedge sysclk)
   Tx_reset = (Tx_reset || Tx_start) && ~Tx_active;
 
 always @(posedge slow_clk) begin
-  // if starting transmission, reset data index
+  // if beginning transmission, reset data index
   if (Tx_reset)
     TxD_idx = 0;
   
-  // transmit the data
-  case (TxD_idx) inside
-        0: TxD = 0; // start bit = 0
-    [1:8]: TxD = TxD_data[TxD_idx-1];
-     9,10: TxD = 1; // stop bit(s) = 1
-  endcase
-  
-  // increment data index
-  if (Tx_active)
+  else if (Tx_active) begin
+    // increment data index
     TxD_idx = TxD_idx + 1;
+    
+    // transmit the data
+    case (TxD_idx) inside
+        1: TxD = 0; // start bit = 0
+    [2:9]: TxD = TxD_data[TxD_idx-2];
+       10: TxD = 1; // stop bit(s) = 1
+    endcase
+  end
 end
 
 endmodule
