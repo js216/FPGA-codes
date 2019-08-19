@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /* ================================
- * RS232 transmitter/ receiver
+ * RS232 transmitter/receiver
  * Jakob Kastelic, 8/19/2019
  * ================================*/
 
@@ -56,7 +56,7 @@ module clock(
   output reg serial_clk
 );
 
-// divide 12MHz clock down to 9600 baud rate
+// divide 12MHz clock down to 115,200 baud rate
 reg [10:0] counter = 0;
 reg old_reset = 0;
 always @(posedge sysclk) begin
@@ -68,7 +68,7 @@ always @(posedge sysclk) begin
    old_reset = reset;
    
    // counter/divider
-   if (counter < 625)
+   if (counter < 52)
      counter = counter + 1;
    else begin
      counter = 0;
