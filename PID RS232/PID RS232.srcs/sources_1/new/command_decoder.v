@@ -26,11 +26,7 @@ module command_decoder(
   output reg [1:0]F,
   
   // control outputs
-  output Tx_active,
-  
-  // debugging
-  output [11:0] out,
-  output [7:1] test1
+  output Tx_active
 );
 
 /* ================================
@@ -77,9 +73,7 @@ serializer TxD_buffer(
   .in3(TxD_in3),
   .len(TxD_len),
   .output_trigger(RxD_buffer_full),
-  .Tx_active(Tx_active),
-  .test1(test1),
-  .out(out)
+  .Tx_active(Tx_active)
 );
 
 /* ================================
@@ -88,8 +82,8 @@ serializer TxD_buffer(
 
 // set default values
 initial F = 2'b00;
-initial KP = 1;
-initial KI = 2;
+initial KP = 0;
+initial KI = 0;
 initial setpoint = 12'b0000_1111_0000;
 
 always @(posedge sysclk) begin
@@ -98,7 +92,7 @@ always @(posedge sysclk) begin
     case(RxD_out0) inside
       "f", "p", "i", "d", "s", "a": RxD_buffer_full = 1;
       "F": if(RxD_buff_len >= 2) RxD_buffer_full = 1; else RxD_buffer_full = 0;
-      "P", "I", "D" : if(RxD_buff_len >= 3) RxD_buffer_full = 1; else RxD_buffer_full = 0;
+      "P", "I", "D", "S" : if(RxD_buff_len >= 3) RxD_buffer_full = 1; else RxD_buffer_full = 0;
       default: Rx_clear_trigger = 1;
     endcase
   end
@@ -109,7 +103,7 @@ always @(posedge sysclk) begin
     case(RxD_out0) inside
       // "set" commands
       "F" : begin
-              F[1:0] <= RxD_out0[1:0];
+              F[1:0] <= RxD_out1[1:0];
               TxD_len = 0;
             end
       "P" : begin

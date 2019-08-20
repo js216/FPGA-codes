@@ -22,8 +22,7 @@ module main(
   output TxD,
   
   // debugging
-  output [11:0] out,
-  output [7:1] test1
+  output [11:0] out
 );
 
 // PID parameters
@@ -50,7 +49,6 @@ RS232 RS232_inst(
   .Tx_active(Tx_active)
 );
 
-/*
 PID PID_inst(
   .sysclk(sysclk),
   .D(D),
@@ -62,7 +60,6 @@ PID PID_inst(
   .ADC_data(ADC_data),
   .accumulator(accumulator)
 );
-*/
 
 command_decoder decoder_inst(
   .sysclk(sysclk),
@@ -77,9 +74,10 @@ command_decoder decoder_inst(
   .F(F),
   .ADC_data(ADC_data),
   .accumulator(accumulator),
-  .Tx_active(),
-  .test1(test1),
-  .out(out)
+  .Tx_active()
 );
+
+// debugging
+assign out = setpoint;
 
 endmodule

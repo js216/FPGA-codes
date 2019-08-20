@@ -56,6 +56,9 @@ module clock(
   output reg serial_clk
 );
 
+//parameter clock_div = 625; // baud_rate = 9,600
+parameter clock_div = 52; // baud_rate = 115,200
+
 // divide 12MHz clock down to 115,200 baud rate
 reg [10:0] counter = 0;
 reg old_reset = 0;
@@ -68,7 +71,7 @@ always @(posedge sysclk) begin
    old_reset = reset;
    
    // counter/divider
-   if (counter < 52)
+   if (counter < clock_div)
      counter = counter + 1;
    else begin
      counter = 0;

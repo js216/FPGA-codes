@@ -22,11 +22,7 @@ module serializer(
   input output_trigger, // negedge sensitive
   
   // control
-  output reg Tx_active,
-  
-  // debugging
-  output [11:0] out,
-  output [7:1] test1
+  output reg Tx_active
 );
 
 wire [7:0] in [3:0];
@@ -38,15 +34,6 @@ reg [2:0] words_to_write = 0;
 
 // for detecting negedge of output_trigger
 reg old_output_trigger, Tx_start;
-
-// debugging
-assign out[7:0] = in1[7:0];
-assign test1[1] = output_trigger;
-assign test1[2] = Tx_start;
-assign test1[3] = Tx_active;
-assign test1[4] = serial_Tx_active;
-assign test1[5] = serial_Tx_start;
-assign test1[7:6] = words_to_write[1:0];
 
 always @(posedge sysclk) begin
   // detect negedge of output_trigger
