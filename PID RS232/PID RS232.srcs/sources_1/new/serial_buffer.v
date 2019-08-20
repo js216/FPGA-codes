@@ -1,9 +1,85 @@
 `timescale 1ns / 1ps
 
 /* ================================
- * Deserializer
+ * Serializer/deserializer
  * Jakob Kastelic, 8/19/2019
  * ================================*/
+ 
+module serializer(
+  input sysclk,
+  
+  // serial data out
+  output reg [7:0] TxD_data,
+  input serial_Tx_active,
+  output reg serial_Tx_start,
+  
+  // parallel data in
+  input [7:0] in0,
+  input [7:0] in1,
+  input [7:0] in2,
+  input [7:0] in3,
+  input [2:0] len,
+  input output_trigger,
+  
+  // control
+  output reg Tx_active
+);
+
+reg [2:0] words_to_write = 0;
+
+// for detecting posedge of output_trigger
+reg old_output_trigger, do_output;
+
+always @(posedge sysclk) begin
+  // detect posedge of output_trigger
+  if (output_trigger && (old_output_trigger != output_trigger))
+    do_output = 1;
+  old_output_trigger = output_trigger;
+  
+  // beginning transmission
+  if (~Tx_active && do_output) begin
+      words_to_write = len;
+      Tx_active = 1;
+      do_output = 0;
+  end
+  
+  // just finished transmission
+  else if (Tx_active && words_to_write == 0)
+    Tx_active = 0;
+    
+  // clear serial_Tx_start if already writing
+  else if (serial_Tx_active && serial_Tx_start)
+    serial_Tx_start = 0;
+  
+  // write to output
+  else if (Tx_active && words_to_write>0 && ~serial_Tx_active) begin
+    case (words_to_write)
+      1: begin
+           TxD_data[7:0] = in0[7:0];
+           serial_Tx_start = 1;
+         end
+      2: begin
+           TxD_data[7:0] = in1[7:0];
+           serial_Tx_start = 1;
+           words_to_write = 1;
+         end
+      3: begin
+           TxD_data[7:0] = in2[7:0];
+           serial_Tx_start = 1;
+           words_to_write = 2;
+         end
+      4: begin
+           TxD_data[7:0] = in3[7:0];
+           serial_Tx_start = 1;
+           words_to_write = 3;
+         end
+    endcase
+  end
+end
+
+endmodule
+ 
+ 
  
 module deserializer(
   input sysclk,

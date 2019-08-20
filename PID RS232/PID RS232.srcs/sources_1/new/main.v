@@ -22,7 +22,8 @@ module main(
   output TxD,
   
   // debugging
-  output [11:0]out
+  output [11:0] out,
+  output [7:1] test1
 );
 
 // PID parameters
@@ -65,7 +66,7 @@ command_decoder decoder_inst(
   .sysclk(sysclk),
   .RxD_data(RxD_data),
   .TxD_data(TxD_data),
-  .Tx_start(Tx_start),
+  .serial_Tx_start(Tx_start),
   .serial_Rx_active(Rx_active),
   .serial_Tx_active(Tx_active),
   .setpoint(setpoint),
@@ -74,11 +75,9 @@ command_decoder decoder_inst(
   .F(F),
   .ADC_data(ADC_data),
   .accumulator(accumulator),
-  .Rx_active(),
-  .Tx_active()
+  .Tx_active(),
+  .test1(test1),
+  .out(out)
 );
-
-// debugging
-assign out[7:0] = RxD_data;
 
 endmodule
