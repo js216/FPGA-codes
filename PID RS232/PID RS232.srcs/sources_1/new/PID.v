@@ -17,13 +17,15 @@ module PID(
     input xa_p,
     
     // input for PID parameters
-    input [11:0]setpoint,
-    input [11:0]KP,
-    input [11:0]KI,
+    input [15:0]setpoint,
+    input [15:0]KP,
+    input [15:0]KI,
     
     // outputs
-    output [11:0]ADC_data,
-    output reg [31:0]accumulator
+    output [15:0]ADC_data,
+    output reg [31:0]error,
+    output reg [31:0]accumulator,
+    output reg [31:0]out
 );
 
 // 100MHz clock for the XADC
@@ -35,7 +37,6 @@ clk_wiz_0 XADC_clock(
 );
 
 // XADC reading from: register 14 = pin 15 of the Cmod A7
-wire [15:0]data;
 wire enable, ADC_ready;
 reg vp_in=0, vn_in=0;
 xadc_wiz_0 XADC_inst(
@@ -46,7 +47,7 @@ xadc_wiz_0 XADC_inst(
       .dwe_in(0),
       .busy_out(),
       .channel_out(),
-      .do_out(data),
+      .do_out(ADC_data),
       .eoc_out(enable),
       .vp_in(vp_in),
       .vn_in(vn_in),
@@ -56,28 +57,21 @@ xadc_wiz_0 XADC_inst(
       .drdy_out(ADC_ready)
 );
 
-// the XADC IP requires a 16-bit wire, but the FGPA's ADC is only 12 bit; we can thus ignore the four LSBs
-assign ADC_data = data >> 4;
-
-// parameters for PID control
-reg [31:0]error;
-reg [12:0]out;
-
 // calculate PID output
 always @(negedge(ADC_ready)) begin
     // calculate error
-    error = setpoint - ADC_data;
+    error[31:0] = setpoint[15:0] - ADC_data[15:0];
     accumulator[31:0] = accumulator[31:0] + error[31:0];
     
     // calculate PID control output
-    out[12:0] =  KP*error[12:0] + KI*accumulator[31:19];
+    out[31:0] =  KP*(error[31:0]<<8) + KI*accumulator[31:0];
     
     // check output is positive; else make it zero
-    if (out[12] == 1)
+    if (out[31] == 1)
       out = 0;
 end
 
 // write to the parallel port
-assign D[15:4] = out[11:0]; // the 16-bit parallel data port
+assign D[15:0] = out[30:15];
 
 endmodule

@@ -16,11 +16,13 @@ module command_decoder(
   input serial_Tx_active,
   
   // PID parameters
-  output reg [11:0]setpoint,
-  output reg [11:0]KP,
-  output reg [11:0]KI,
-  input [11:0]ADC_data,
+  output reg [15:0]setpoint,
+  output reg [15:0]KP,
+  output reg [15:0]KI,
+  input [15:0]ADC_data,
+  input [31:0]error,
   input [31:0]accumulator,
+  input [31:0]out,
     
   // AD9910 data direction
   output reg [1:0]F,
@@ -84,13 +86,13 @@ serializer TxD_buffer(
 initial F = 2'b00;
 initial KP = 0;
 initial KI = 0;
-initial setpoint = 12'b0000_1111_0000;
+initial setpoint = 16'b0100_0000_0000_0000;
 
 always @(posedge sysclk) begin
   // determine whether enough data has been read
   if (~RxD_buffer_full) begin
     case(RxD_out0) inside
-      "f", "p", "i", "d", "s", "a": RxD_buffer_full = 1;
+      "f", "p", "i", "d", "s", "a", "e", "o": RxD_buffer_full = 1;
       "F": if(RxD_buff_len >= 2) RxD_buffer_full = 1; else RxD_buffer_full = 0;
       "P", "I", "D", "S" : if(RxD_buff_len >= 3) RxD_buffer_full = 1; else RxD_buffer_full = 0;
       default: Rx_clear_trigger = 1;
@@ -107,15 +109,15 @@ always @(posedge sysclk) begin
               TxD_len = 0;
             end
       "P" : begin
-              KP[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+              KP[15:0] <= {RxD_out2[7:0], RxD_out1[7:0]};
               TxD_len = 0;
             end
       "I" : begin
-              KI[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+              KI[15:0] <= {RxD_out2[7:0], RxD_out1[7:0]};
               TxD_len = 0;
             end
       "S" : begin
-              setpoint[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+              setpoint[15:0] <= {RxD_out2[7:0], RxD_out1[7:0]};
               TxD_len = 0;
             end
       
@@ -126,22 +128,22 @@ always @(posedge sysclk) begin
             end
       "p" : begin
               TxD_in0[7:0] <= KP[7:0];
-              TxD_in1[7:0] <= {{4'b0000}, KP[11:8]};
+              TxD_in1[7:0] <= KP[15:8];
               TxD_len <= 2;
             end
       "i" : begin
               TxD_in0[7:0] <= KI[7:0];
-              TxD_in1[7:0] <= {{4'b0000}, KI[11:8]};
+              TxD_in1[7:0] <= KI[15:8];
               TxD_len <= 2;
             end
       "d" : begin
               TxD_in0[7:0] <= ADC_data[7:0];
-              TxD_in1[7:0] <= {{4'b0000}, ADC_data[11:8]};
+              TxD_in1[7:0] <= ADC_data[15:8];
               TxD_len <= 2;
             end
       "s" : begin
               TxD_in0[7:0] <= setpoint[7:0];
-              TxD_in1[7:0] <= {{4'b0000}, setpoint[11:8]};
+              TxD_in1[7:0] <= setpoint[15:8];
               TxD_len <= 2;
             end
       "a" : begin
@@ -149,6 +151,20 @@ always @(posedge sysclk) begin
               TxD_in1[7:0] <= accumulator[15:8];
               TxD_in2[7:0] <= accumulator[23:16];
               TxD_in3[7:0] <= accumulator[31:24];
+              TxD_len <= 4;
+            end
+      "e" : begin
+              TxD_in0[7:0] <= error[7:0];
+              TxD_in1[7:0] <= error[15:8];
+              TxD_in2[7:0] <= error[23:16];
+              TxD_in3[7:0] <= error[31:24];
+              TxD_len <= 4;
+            end
+      "o" : begin
+              TxD_in0[7:0] <= out[7:0];
+              TxD_in1[7:0] <= out[15:8];
+              TxD_in2[7:0] <= out[23:16];
+              TxD_in3[7:0] <= out[31:24];
               TxD_len <= 4;
             end
     endcase

@@ -19,18 +19,17 @@ module main(
     
   // RS232 io
   input RxD,
-  output TxD,
-  
-  // debugging
-  output [11:0] out
+  output TxD
 );
 
 // PID parameters
-wire [11:0]setpoint;
-wire [11:0]KP;
-wire [11:0]KI;
-wire [11:0]ADC_data;
+wire [15:0]setpoint;
+wire [15:0]KP;
+wire [15:0]KI;
+wire [15:0]ADC_data;
+wire [31:0]error;
 wire [31:0]accumulator;
+wire [31:0]out;
 
 // serial data
 wire Tx_start, Rx_active, Tx_active;
@@ -58,7 +57,9 @@ PID PID_inst(
   .KP(KP),
   .KI(KI),
   .ADC_data(ADC_data),
-  .accumulator(accumulator)
+  .error(error),
+  .accumulator(accumulator),
+  .out(out)
 );
 
 command_decoder decoder_inst(
@@ -73,11 +74,10 @@ command_decoder decoder_inst(
   .KI(KI),
   .F(F),
   .ADC_data(ADC_data),
+  .error(error),
   .accumulator(accumulator),
+  .out(out),
   .Tx_active()
 );
-
-// debugging
-assign out = setpoint;
 
 endmodule
