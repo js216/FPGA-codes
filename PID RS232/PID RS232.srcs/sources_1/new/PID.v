@@ -26,7 +26,7 @@ module PID(
     output reg [31:0]accumulator
 );
 
-// the clock for the XADC
+// 100MHz clock for the XADC
 wire XADC_clk;
 clk_wiz_0 XADC_clock(
     .clk_in1(sysclk),
@@ -37,7 +37,7 @@ clk_wiz_0 XADC_clock(
 // XADC reading from: register 14 = pin 15 of the Cmod A7
 wire [15:0]data;
 wire enable, ADC_ready;
-reg vp_in, vn_in;
+reg vp_in=0, vn_in=0;
 xadc_wiz_0 XADC_inst(
       .daddr_in(8'h14),
       .dclk_in(XADC_clk),

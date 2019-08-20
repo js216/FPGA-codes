@@ -66,14 +66,16 @@ command_decoder decoder_inst(
   .RxD_data(RxD_data),
   .TxD_data(TxD_data),
   .Tx_start(Tx_start),
-  .Rx_active(Rx_active),
-  .Tx_active(Tx_active),
+  .serial_Rx_active(Rx_active),
+  .serial_Tx_active(Tx_active),
   .setpoint(setpoint),
   .KP(KP),
   .KI(KI),
   .F(F),
   .ADC_data(ADC_data),
-  .accumulator(accumulator)
+  .accumulator(accumulator),
+  .Rx_active(),
+  .Tx_active()
 );
 
 // debugging
