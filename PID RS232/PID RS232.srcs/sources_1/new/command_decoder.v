@@ -37,20 +37,17 @@ module command_decoder(
  *           RX BUFFER PART
  * ================================*/
 
-reg RxD_output_trigger = 0;
-reg RxD_buffer_full;
-wire [2:2] RxD_buff_len;
+reg Rx_clear_trigger = 0;
+wire [2:0] RxD_buff_len;
 wire [7:0] RxD_out0;
 wire [7:0] RxD_out1;
 wire [7:0] RxD_out2;
 
-assign out[7:0] = RxD_data[7:0];
-assign test1[7:1] = RxD_out0[7:1];
-
 deserializer RxD_buffer(
   .sysclk(sysclk),
-  .input_trigger(~serial_Rx_active),
+  .input_trigger(serial_Rx_active),
   .data_in(RxD_data),
+  .clear_trigger(Rx_clear_trigger),
   .buff_len(RxD_buff_len),
   .out0(RxD_out0),
   .out1(RxD_out1),
@@ -61,8 +58,9 @@ deserializer RxD_buffer(
  *           TX BUFFER PART
  * ================================*/
 
+reg RxD_buffer_full; // for determining whether enough data has been read
 reg Tx_output_trigger;
-reg [2:0] TxD_len;
+reg [2:0] TxD_len = 0;
 reg [7:0] TxD_in0;
 reg [7:0] TxD_in1;
 reg [7:0] TxD_in2;
@@ -78,70 +76,97 @@ serializer TxD_buffer(
   .in2(TxD_in2),
   .in3(TxD_in3),
   .len(TxD_len),
-  .output_trigger(~RxD_buffer_full),
-  .Tx_active(Tx_active)
+  .output_trigger(RxD_buffer_full),
+  .Tx_active(Tx_active),
+  .test1(test1),
+  .out(out)
 );
 
 /* ================================
  *           COMMANDS PART
  * ================================*/
 
+// set default values
+initial F = 2'b00;
+initial KP = 1;
+initial KI = 2;
+initial setpoint = 12'b0000_1111_0000;
+
 always @(posedge sysclk) begin
   // determine whether enough data has been read
-  case(RxD_out0) inside
-    "f", "p", "i", "d", "s", "a": RxD_buffer_full = 1;
-    "F": if(RxD_buff_len >= 2) RxD_buffer_full = 1; else RxD_buffer_full = 0;
-    "P", "I", "D" : if(RxD_buff_len >= 3) RxD_buffer_full = 1; else RxD_buffer_full = 0;
-  endcase
-  
-  // execute commands
-  if (RxD_buffer_full) begin
-    TxD_len = 0; // default TxD_len value: do not transmit anything unless stated otherwise
-    
+  if (~RxD_buffer_full) begin
+    case(RxD_out0) inside
+      "f", "p", "i", "d", "s", "a": RxD_buffer_full = 1;
+      "F": if(RxD_buff_len >= 2) RxD_buffer_full = 1; else RxD_buffer_full = 0;
+      "P", "I", "D" : if(RxD_buff_len >= 3) RxD_buffer_full = 1; else RxD_buffer_full = 0;
+      default: Rx_clear_trigger = 1;
+    endcase
+  end
+
+  // when enough data has been received ...
+  else if (RxD_buffer_full) begin
+    // ... we can start processing the data
     case(RxD_out0) inside
       // "set" commands
-      "F" : F[1:0] <= RxD_out0[1:0]; // AD9910 parallel data output direction (00=amplituded mod., ...)
-      "P" : KP[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
-      "I" : KI[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
-      "S" : setpoint[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+      "F" : begin
+              F[1:0] <= RxD_out0[1:0];
+              TxD_len = 0;
+            end
+      "P" : begin
+              KP[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+              TxD_len = 0;
+            end
+      "I" : begin
+              KI[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+              TxD_len = 0;
+            end
+      "S" : begin
+              setpoint[11:0] <= {RxD_out2[3:0], RxD_out1[7:0]};
+              TxD_len = 0;
+            end
       
       // "get" commands
       "f" : begin
-              TxD_in0 = F[1:0];
-              TxD_len <= 1;
+              TxD_in0[7:0] = {{6'b00_0000}, F[1:0]};
+              TxD_len = 1;
             end
       "p" : begin
-            TxD_in0[7:0] <= KP[7:0];
-            TxD_in1[3:0] <= KP[11:8];
-            TxD_len <= 2;
-          end
-    "i" : begin
-            TxD_in0[7:0] <= KI[7:0];
-            TxD_in1[3:0] <= KI[11:8];
-            TxD_len <= 2;
-          end
-    "d" : begin
-            TxD_in0[7:0] <= ADC_data[7:0];
-            TxD_in1[3:0] <= ADC_data[11:8];
-            TxD_len <= 2;
-          end
-    "s" : begin
-            TxD_in0[7:0] <= setpoint[7:0];
-            TxD_in1[3:0] <= setpoint[11:8];
-            TxD_len <= 2;
-          end
-    "a" : begin
-            TxD_in0[7:0] <= accumulator[7:0];
-            TxD_in1[7:0] <= accumulator[15:8];
-            TxD_in2[7:0] <= accumulator[23:16];
-            TxD_in3[7:0] <= accumulator[31:24];
-            TxD_len <= 4;
-          end
+              TxD_in0[7:0] <= KP[7:0];
+              TxD_in1[7:0] <= {{4'b0000}, KP[11:8]};
+              TxD_len <= 2;
+            end
+      "i" : begin
+              TxD_in0[7:0] <= KI[7:0];
+              TxD_in1[7:0] <= {{4'b0000}, KI[11:8]};
+              TxD_len <= 2;
+            end
+      "d" : begin
+              TxD_in0[7:0] <= ADC_data[7:0];
+              TxD_in1[7:0] <= {{4'b0000}, ADC_data[11:8]};
+              TxD_len <= 2;
+            end
+      "s" : begin
+              TxD_in0[7:0] <= setpoint[7:0];
+              TxD_in1[7:0] <= {{4'b0000}, setpoint[11:8]};
+              TxD_len <= 2;
+            end
+      "a" : begin
+              TxD_in0[7:0] <= accumulator[7:0];
+              TxD_in1[7:0] <= accumulator[15:8];
+              TxD_in2[7:0] <= accumulator[23:16];
+              TxD_in3[7:0] <= accumulator[31:24];
+              TxD_len <= 4;
+            end
     endcase
     
-    // having processed the data, the buffer is no longer full
+    // having processed the data, we can empty the RxD_buffer
+    Rx_clear_trigger = 1;
     RxD_buffer_full = 0;
   end
+
+  // when the RxD_buffer has been cleared, turn off the clear_trigger
+  if (RxD_buff_len==0 && Rx_clear_trigger)
+    Rx_clear_trigger = 0;
 end
 
 endmodule

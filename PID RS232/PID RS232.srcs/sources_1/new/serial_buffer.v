@@ -19,61 +19,64 @@ module serializer(
   input [7:0] in2,
   input [7:0] in3,
   input [2:0] len,
-  input output_trigger,
+  input output_trigger, // negedge sensitive
   
   // control
-  output reg Tx_active
+  output reg Tx_active,
+  
+  // debugging
+  output [11:0] out,
+  output [7:1] test1
 );
 
+wire [7:0] in [3:0];
+assign in[0] = in0;
+assign in[1] = in1;
+assign in[2] = in2;
+assign in[3] = in3;
 reg [2:0] words_to_write = 0;
 
-// for detecting posedge of output_trigger
-reg old_output_trigger, do_output;
+// for detecting negedge of output_trigger
+reg old_output_trigger, Tx_start;
+
+// debugging
+assign out[7:0] = in1[7:0];
+assign test1[1] = output_trigger;
+assign test1[2] = Tx_start;
+assign test1[3] = Tx_active;
+assign test1[4] = serial_Tx_active;
+assign test1[5] = serial_Tx_start;
+assign test1[7:6] = words_to_write[1:0];
 
 always @(posedge sysclk) begin
-  // detect posedge of output_trigger
-  if (output_trigger && (old_output_trigger != output_trigger))
-    do_output = 1;
+  // detect negedge of output_trigger
+  if (~output_trigger && (old_output_trigger != output_trigger))
+    Tx_start = 1;
   old_output_trigger = output_trigger;
   
   // beginning transmission
-  if (~Tx_active && do_output) begin
+  if (~Tx_active && Tx_start) begin
       words_to_write = len;
       Tx_active = 1;
-      do_output = 0;
   end
+  
+  // clear Tx_start if already transmitting
+  else if (Tx_active && Tx_start)
+    Tx_start = 0;
   
   // just finished transmission
   else if (Tx_active && words_to_write == 0)
     Tx_active = 0;
     
-  // clear serial_Tx_start if already writing
+  // clear serial_Tx_start if already writing to serial
   else if (serial_Tx_active && serial_Tx_start)
     serial_Tx_start = 0;
-  
+
   // write to output
-  else if (Tx_active && words_to_write>0 && ~serial_Tx_active) begin
-    case (words_to_write)
-      1: begin
-           TxD_data[7:0] = in0[7:0];
-           serial_Tx_start = 1;
-         end
-      2: begin
-           TxD_data[7:0] = in1[7:0];
-           serial_Tx_start = 1;
-           words_to_write = 1;
-         end
-      3: begin
-           TxD_data[7:0] = in2[7:0];
-           serial_Tx_start = 1;
-           words_to_write = 2;
-         end
-      4: begin
-           TxD_data[7:0] = in3[7:0];
-           serial_Tx_start = 1;
-           words_to_write = 3;
-         end
-    endcase
+  else if (Tx_active && words_to_write>0 && ~serial_Tx_active && ~serial_Tx_start) begin
+    TxD_data[7:0] = in[words_to_write-1][7:0];
+    words_to_write = words_to_write - 1;
+    serial_Tx_start = 1;
   end
 end
 
@@ -85,11 +88,11 @@ module deserializer(
   input sysclk,
   
   // serial input
-  input input_trigger,
+  input input_trigger, // negedge sensitive
   input [7:0] data_in,
 
   // parallel output
-  input clear_trigger,
+  input clear_trigger, // posedge sensitive
   output reg [2:0] buff_len,
   output [7:0] out0,
   output [7:0] out1,
@@ -102,19 +105,19 @@ assign out0 = buffer[0];
 assign out1 = buffer[1];
 assign out2 = buffer[2];
 
-// for detecting posedge of input_trigger and clear_trigger
+// for detecting edges of input_trigger and clear_trigger
 reg old_input_trigger, old_clear_trigger;
 reg put_word, clear;
 
 always @(posedge sysclk) begin
-  // detect posedge of input_trigger
-  if (input_trigger && (old_input_trigger != input_trigger))
+  // detect negedge of input_trigger
+  if (~input_trigger && (old_input_trigger != input_trigger))
     put_word = 1;
   else
     put_word = 0;
   old_input_trigger = input_trigger;
   
-  // detect posedge of clear_triggerrigger
+  // detect posedge of clear_trigger
   if (clear_trigger && (old_clear_trigger != clear_trigger))
     clear = 1;
   else

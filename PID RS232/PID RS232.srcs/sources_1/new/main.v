@@ -50,6 +50,7 @@ RS232 RS232_inst(
   .Tx_active(Tx_active)
 );
 
+/*
 PID PID_inst(
   .sysclk(sysclk),
   .D(D),
@@ -61,6 +62,7 @@ PID PID_inst(
   .ADC_data(ADC_data),
   .accumulator(accumulator)
 );
+*/
 
 command_decoder decoder_inst(
   .sysclk(sysclk),
