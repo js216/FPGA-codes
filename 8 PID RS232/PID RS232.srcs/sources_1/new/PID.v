@@ -17,6 +17,8 @@ module PID(
     input xa_p,
     
     // input for PID parameters
+    input error_invert,
+    input [31:0]output_limit,
     input [15:0]setpoint,
     input [15:0]KP,
     input [15:0]KI,
@@ -64,11 +66,18 @@ always @(negedge(ADC_ready)) begin
     accumulator[31:0] = accumulator[31:0] + error[31:0];
     
     // calculate PID control output
-    out[31:0] =  KP*(error[31:0]<<8) + KI*accumulator[31:0];
+    if (error_invert)
+      out[31:0] =  -(KP*(error[31:0]<<8) + KI*accumulator[31:0]);
+    else
+      out[31:0] =  KP*(error[31:0]<<8) + KI*accumulator[31:0];
     
     // check output is positive; else make it zero
     if (out[31] == 1)
       out = 0;
+    
+    // set a hard limit on the PID output
+    if (out > output_limit)
+      out = output_limit;
 end
 
 // write to the parallel port

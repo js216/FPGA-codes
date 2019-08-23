@@ -11,7 +11,7 @@ module main(
     
   // 18-bit digital output port 
   output [15:0]D,
-  output [1:0]F,
+  output [2:0]F,
     
   // XADC pins
   input xa_n,   
@@ -19,17 +19,28 @@ module main(
     
   // RS232 io
   input RxD,
-  output TxD
+  output TxD,
+  
+  // status
+  output device_ready
 );
+
+// blinking LED to signify device ready
+reg [22:0] slow_clk_counter;
+assign device_ready = slow_clk_counter[22];
+always @(posedge sysclk)
+   slow_clk_counter <= slow_clk_counter + 1;
 
 // PID parameters
 wire [15:0]setpoint;
 wire [15:0]KP;
 wire [15:0]KI;
+wire error_invert;
 wire [15:0]ADC_data;
 wire [31:0]error;
 wire [31:0]accumulator;
 wire [31:0]out;
+wire [31:0]output_limit;
 
 // serial data
 wire Tx_start, Rx_active, Tx_active;
@@ -53,6 +64,8 @@ PID PID_inst(
   .D(D),
   .xa_n(xa_n),
   .xa_p(xa_p),
+  .error_invert(error_invert),
+  .output_limit(output_limit),
   .setpoint(setpoint),
   .KP(KP),
   .KI(KI),
@@ -72,6 +85,8 @@ command_decoder decoder_inst(
   .setpoint(setpoint),
   .KP(KP),
   .KI(KI),
+  .error_invert(error_invert),
+  .output_limit(output_limit),
   .F(F),
   .ADC_data(ADC_data),
   .error(error),

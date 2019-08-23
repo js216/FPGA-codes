@@ -19,13 +19,15 @@ module command_decoder(
   output reg [15:0]setpoint,
   output reg [15:0]KP,
   output reg [15:0]KI,
+  output reg error_invert,
+  output reg [31:0]output_limit,
   input [15:0]ADC_data,
   input [31:0]error,
   input [31:0]accumulator,
   input [31:0]out,
     
   // AD9910 data direction
-  output reg [1:0]F,
+  output reg [2:0]F,
   
   // control outputs
   output Tx_active
@@ -83,10 +85,12 @@ serializer TxD_buffer(
  * ================================*/
 
 // set default values
-initial F = 2'b00;
+initial error_invert = 1;
+initial F = 3'b000;
 initial KP = 0;
 initial KI = 0;
 initial setpoint = 16'b0100_0000_0000_0000;
+initial output_limit = 1871941254;
 
 always @(posedge sysclk) begin
   // determine whether enough data has been read
@@ -105,7 +109,7 @@ always @(posedge sysclk) begin
     case(RxD_out0) inside
       // "set" commands
       "F" : begin
-              F[1:0] <= RxD_out1[1:0];
+              F[2:0] <= RxD_out1[2:0];
               TxD_len = 0;
             end
       "P" : begin
@@ -120,10 +124,14 @@ always @(posedge sysclk) begin
               setpoint[15:0] <= {RxD_out2[7:0], RxD_out1[7:0]};
               TxD_len = 0;
             end
+      "N" : begin
+              error_invert <= RxD_out1[0];
+              TxD_len = 0;
+            end
       
       // "get" commands
       "f" : begin
-              TxD_in0[7:0] = {{6'b00_0000}, F[1:0]};
+              TxD_in0[7:0] = {{5'b0_0000}, F[2:0]};
               TxD_len = 1;
             end
       "p" : begin
@@ -166,6 +174,10 @@ always @(posedge sysclk) begin
               TxD_in2[7:0] <= out[23:16];
               TxD_in3[7:0] <= out[31:24];
               TxD_len <= 4;
+            end
+       "n" : begin
+              TxD_in0[7:0] = {{7'b000_0000}, {error_invert}};
+              TxD_len = 1;
             end
     endcase
     
