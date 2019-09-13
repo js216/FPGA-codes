@@ -9,7 +9,7 @@
 module PID(
     input sysclk,
 
-    // 18-bit digital output port 
+    // 16-bit digital output port 
     output [15:0]D,
     
     // XADC pins
@@ -18,7 +18,7 @@ module PID(
     
     // input for PID parameters
     input error_invert,
-    input [31:0]output_limit,
+    input [15:0]output_limit,
     input [15:0]setpoint,
     input [15:0]KP,
     input [15:0]KI,
@@ -76,7 +76,7 @@ always @(negedge(ADC_ready)) begin
       out = 0;
     
     // set a hard limit on the PID output
-    if (out > output_limit)
+    if (out[30:15] > output_limit[15:0])
       out = output_limit;
 end
 

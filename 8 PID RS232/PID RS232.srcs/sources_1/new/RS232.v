@@ -59,7 +59,7 @@ module clock(
 //parameter clock_div = 625; // baud_rate = 9,600
 parameter clock_div = 52; // baud_rate = 115,200
 
-// divide 12MHz clock down to 115,200 baud rate
+// divide 12MHz clock down to the specified baud rate
 reg [10:0] counter = 0;
 reg old_reset = 0;
 always @(posedge sysclk) begin
